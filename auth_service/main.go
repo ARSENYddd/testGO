@@ -19,7 +19,7 @@ type User struct {
 var db *sql.DB
 
 func main() {
-	connStr := "user=test_db password=qwe dbname=qwe host=localhost port=5420 sslmode=disable"
+	connStr := "user=test_db password=qwe dbname=userdb host=localhost port=5420 sslmode=disable"
 	var err error
 	db, err = sql.Open("postgres", connStr)
 	if err != nil {
@@ -38,11 +38,13 @@ func main() {
 	log.Println("Server running on port 8080")
 	r.Run(":8080")
 }
+
 func GetUsers(c *gin.Context) {
 	var users []User
 	rows, err := db.Query("SELECT id, name, age FROM users")
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		log.Println("Error executing query:", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Internal Server Error"})
 		return
 	}
 	defer rows.Close()
@@ -50,19 +52,22 @@ func GetUsers(c *gin.Context) {
 	for rows.Next() {
 		var user User
 		if err := rows.Scan(&user.ID, &user.Name, &user.Age); err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			log.Println("Error scanning rows:", err)
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Internal Server Error"})
 			return
 		}
 		users = append(users, user)
 	}
 
 	if err := rows.Err(); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		log.Println("Row iteration error:", err) // Логирование ошибки
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Internal Server Error"})
 		return
 	}
 
 	c.JSON(http.StatusOK, users)
 }
+
 func GetUser(c *gin.Context) {
 	id, err := strconv.Atoi(c.Param("id"))
 	if err != nil {
@@ -82,6 +87,7 @@ func GetUser(c *gin.Context) {
 
 	c.JSON(http.StatusOK, user)
 }
+
 func CreateUser(c *gin.Context) {
 	var user User
 	if err := c.BindJSON(&user); err != nil {
@@ -99,6 +105,7 @@ func CreateUser(c *gin.Context) {
 
 	c.JSON(http.StatusCreated, user)
 }
+
 func UpdateUser(c *gin.Context) {
 	id, err := strconv.Atoi(c.Param("id"))
 	if err != nil {
@@ -121,6 +128,7 @@ func UpdateUser(c *gin.Context) {
 	user.ID = id
 	c.JSON(http.StatusOK, user)
 }
+
 func DeleteUser(c *gin.Context) {
 	id, err := strconv.Atoi(c.Param("id"))
 	if err != nil {
